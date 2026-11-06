@@ -1,0 +1,41 @@
+# ---- Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# ---- Virtual environment
+.venv/
+venv/
+
+# ---- Secrets (NEVER upload!)
+secrets/
+*firebase*key*.json
+serviceAccount*.json
+.env
+
+# ---- Large data (raw videos/images stay on your computer)
+data/raw/
+
+# ---- Build output
+build/
+dist/
+*.spec
+
+# ---- Logs
+logs/
+*.log
+
+# ---- Office temporary files
+~$*
+
+# ---- OS / editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.ipynb_checkpoints/
+#1..
+#Without secrets
+secrets/
+.venv/
+__pycache__/
