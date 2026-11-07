@@ -11,6 +11,7 @@ venv/
 secrets/
 *firebase*key*.json
 serviceAccount*.json
+*firebase*credentials*.json
 .env
 
 # ---- Large data (raw videos/images stay on your computer)
@@ -33,9 +34,8 @@ logs/
 Thumbs.db
 desktop.ini
 .idea/
+.vscode/
 .ipynb_checkpoints/
-#1..
-#Without secrets
-secrets/
-.venv/
-__pycache__/
+
+# ---- Personal Claude Code context (not shared)
+CLAUDE.md

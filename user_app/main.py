@@ -11,11 +11,12 @@ Run from the project root:
 import sys
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QStackedWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QStackedWidget, QVBoxLayout
 
 from user_app.ui import styles
 from user_app.ui.login_screen import LoginScreen
 from user_app.ui.register_screen import RegisterScreen
+from user_app.ui.widgets.glow_background import GlowBackground
 
 
 class MainWindow(QMainWindow):
@@ -33,7 +34,13 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.stack.addWidget(self.login_screen)
         self.stack.addWidget(self.register_screen)
-        self.setCentralWidget(self.stack)
+
+        # the glow background sits behind the deck (the screens are see-through)
+        background = GlowBackground()
+        background_layout = QVBoxLayout(background)
+        background_layout.setContentsMargins(0, 0, 0, 0)
+        background_layout.addWidget(self.stack)
+        self.setCentralWidget(background)
 
         # 3. Connect the screens' signals to navigation
         self.login_screen.go_to_register.connect(self.show_register)
@@ -50,14 +57,7 @@ class MainWindow(QMainWindow):
 
         # 5. Start on the login screen
         self.show_login()
-
-
-
-
-
-
-
-
+        
         # ------------------------------------------------------------ theme button
     def update_theme_button(self, theme_name):
         # the button shows the theme you will switch TO

@@ -12,9 +12,8 @@ import re
 import sys
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import (
-    QApplication, QCheckBox, QFrame, QGraphicsDropShadowEffect, QHBoxLayout,
+    QApplication, QCheckBox, QFrame, QHBoxLayout,
     QLabel, QLineEdit, QProgressBar, QPushButton, QVBoxLayout, QWidget,
 )
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
@@ -23,6 +22,7 @@ from shared.auth_service import register
 from shared.database_service import create_user_profile
 from user_app.ui import styles
 from user_app.ui.brand_panel import build_brand_panel
+from user_app.ui.widgets.glow_background import GlowBackground
 # Firebase error codes -> friendly messages for the user
 FIREBASE_ERRORS = {
     "EMAIL_EXISTS": "This email is already registered. Try logging in.",
@@ -81,20 +81,25 @@ class RegisterScreen(QWidget):
 
     # ------------------------------------------------------------ layout
     def _build_ui(self):
-        card = QFrame(objectName="Card")
-        card.setFixedSize(940, 700)
-        shadow = QGraphicsDropShadowEffect(blurRadius=60, xOffset=0, yOffset=18)
-        shadow.setColor(QColor(79, 70, 229, 60))
-        card.setGraphicsEffect(shadow)
-
-        card_layout = QHBoxLayout(card)
+        # glass card on the right holds the form
+        card = QFrame(objectName="GlassPanel")
+        card.setFixedSize(460, 700)
+        styles.add_glass_shadow(card)
+        card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(0, 0, 0, 0)
-        card_layout.setSpacing(0)
-        card_layout.addWidget(build_brand_panel(), 5)
-        card_layout.addWidget(self._build_form(), 6)
+        card_layout.addWidget(self._build_form())
 
-        root = QVBoxLayout(self)
-        root.addWidget(card, alignment=Qt.AlignCenter)
+        # brand message on the left, directly on the background
+        brand = build_brand_panel()
+        brand.setFixedSize(416, 700)
+
+        # [stretch | brand | gap | card | stretch] -> both stay centered in the window
+        root = QHBoxLayout(self)
+        root.addStretch()
+        root.addWidget(brand, 0, Qt.AlignVCenter)
+        root.addSpacing(64)
+        root.addWidget(card, 0, Qt.AlignVCenter)
+        root.addStretch()
 
     def _build_form(self):
         form = QWidget()
@@ -282,7 +287,8 @@ class RegisterScreen(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     styles.theme.apply()
-    window = RegisterScreen()
+    window = GlowBackground()          # the screen sits on the glow background
+    QVBoxLayout(window).addWidget(RegisterScreen())
     window.setWindowTitle("ErgoMon - Create account")
     window.resize(1100, 800)
     window.show()

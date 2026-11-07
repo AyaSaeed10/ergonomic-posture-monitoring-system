@@ -1,5 +1,6 @@
 """
-Brand panel - the colorful left side used by the Login and Register screens.
+Brand panel - the brand message on the left side of the Login and Register
+screens. It sits directly on the glowing background (no box around it).
 Written once here, used by both screens.
 """
 
@@ -17,7 +18,7 @@ FEATURES = (
 def build_brand_panel():
     panel = QFrame(objectName="BrandPanel")
     layout = QVBoxLayout(panel)
-    layout.setContentsMargins(44, 48, 44, 36)
+    layout.setContentsMargins(8, 48, 8, 36)
     layout.setSpacing(0)
 
     logo = QLabel("EM", objectName="Logo", alignment=Qt.AlignCenter)
