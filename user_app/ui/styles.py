@@ -14,11 +14,14 @@ user_app/ui/widgets/glow_background.py using the GLOWS colors below.
 
 from pathlib import Path
 
-from PyQt5.QtCore import QObject, QSettings, pyqtSignal
-from PyQt5.QtGui import QColor, QFontDatabase
+from PyQt5.QtCore import QByteArray, QObject, QSettings, Qt, pyqtSignal
+from PyQt5.QtGui import QColor, QFontDatabase, QIcon, QPainter, QPixmap
+from PyQt5.QtSvg import QSvgRenderer
 from PyQt5.QtWidgets import QApplication, QGraphicsDropShadowEffect
 
-FONTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+FONTS_DIR = ASSETS_DIR / "fonts"
+ICONS_DIR = ASSETS_DIR / "icons"
 
 
 def rgba(r, g, b, opacity):
@@ -77,6 +80,16 @@ DARK = {
     "SUCCESS_BORDER": rgba(52, 227, 164, 0.30),
     "ERROR_BG": rgba(255, 122, 107, 0.10),
     "ERROR_BORDER": rgba(255, 122, 107, 0.30),
+    "WARNING_BG": rgba(255, 181, 71, 0.10),
+    "WARNING_BORDER": rgba(255, 181, 71, 0.30),
+    # sidebar
+    "HOVER_BG": rgba(255, 255, 255, 0.07),
+    "ICON": "#9AA3B8",
+    "ICON_ACTIVE": "#FFFFFF",
+    # camera area
+    "CAMERA_BG": "#0B0F1C",
+    "TOOLTIP_BG": rgba(10, 14, 28, 0.78),
+    "TOOLTIP_BORDER": rgba(255, 255, 255, 0.14),
 }
 
 LIGHT = {
@@ -117,6 +130,14 @@ LIGHT = {
     "SUCCESS_BORDER": rgba(8, 122, 84, 0.25),
     "ERROR_BG": rgba(194, 58, 39, 0.08),
     "ERROR_BORDER": rgba(194, 58, 39, 0.25),
+    "WARNING_BG": rgba(149, 88, 0, 0.08),
+    "WARNING_BORDER": rgba(149, 88, 0, 0.25),
+    "HOVER_BG": rgba(20, 30, 70, 0.06),
+    "ICON": "#5C6680",
+    "ICON_ACTIVE": "#FFFFFF",
+    "CAMERA_BG": "#E1E5F2",
+    "TOOLTIP_BG": rgba(255, 255, 255, 0.88),
+    "TOOLTIP_BORDER": rgba(20, 30, 70, 0.10),
 }
 
 
@@ -258,6 +279,52 @@ QProgressBar {{
     font-weight: 600;
 }}
 #ThemeToggle:hover {{ border-color: {c["PRIMARY_START"]}; }}
+
+/* ---------- sidebar (after login) ---------- */
+#SidebarLogo {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                                stop:0 {c["PRIMARY_START"]}, stop:1 {c["PRIMARY_END"]});
+    color: white;
+    border-radius: 12px;
+    font-family: "Sora";
+    font-size: 14px;
+    font-weight: 700;
+}}
+#SidebarButton {{ background: transparent; border: none; border-radius: 14px; }}
+#SidebarButton:hover {{ background: {c["HOVER_BG"]}; }}
+#SidebarButton[active="true"] {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                                stop:0 {c["PRIMARY_START"]}, stop:1 {c["PRIMARY_END"]});
+}}
+QToolTip {{
+    background: {c["TOOLTIP_BG"]};
+    color: {c["TEXT"]};
+    border: 1px solid {c["TOOLTIP_BORDER"]};
+    padding: 6px 10px;
+    font-size: 12px;
+}}
+
+/* ---------- monitor screen ---------- */
+#PanelTitle {{ font-family: "Sora"; font-size: 18px; font-weight: 700; }}
+#PanelSubtitle {{ font-size: 13px; color: {c["MUTED"]}; }}
+#CheckTitle {{ font-size: 14px; font-weight: 600; }}
+#CheckDetail {{ font-size: 12px; color: {c["MUTED"]}; }}
+#CheckIcon {{ border-radius: 13px; font-size: 13px; font-weight: 700; }}
+#CheckIcon[state="ok"] {{
+    background: {c["SUCCESS_BG"]}; border: 1px solid {c["SUCCESS_BORDER"]}; color: {c["SUCCESS"]};
+}}
+#CheckIcon[state="fail"] {{
+    background: {c["WARNING_BG"]}; border: 1px solid {c["WARNING_BORDER"]}; color: {c["WARNING"]};
+}}
+#CheckIcon[state="wait"] {{
+    background: {c["BORDER"]}; border: 1px solid {c["BORDER"]}; color: {c["MUTED"]};
+}}
+#CameraPlaceholder {{
+    background: {c["CAMERA_BG"]};
+    border-radius: 18px;
+    color: {c["MUTED"]};
+    font-size: 14px;
+}}
 """
 
 
@@ -277,6 +344,19 @@ def load_fonts():
         if QFontDatabase.addApplicationFont(str(path)) == -1:
             print(f"Warning: could not load font {path.name}")
     _fonts_loaded = True
+
+
+def load_icon(name, color, size=22):
+    """Load a Lucide icon from assets/icons/<name>.svg in the given color.
+    Lucide icons are drawn with the color "currentColor", so we replace that
+    word with our color and draw the SVG into a picture (at 2x for sharp edges)."""
+    svg = (ICONS_DIR / f"{name}.svg").read_text(encoding="utf-8").replace("currentColor", color)
+    pixmap = QPixmap(size * 2, size * 2)
+    pixmap.fill(Qt.transparent)
+    painter = QPainter(pixmap)
+    QSvgRenderer(QByteArray(svg.encode("utf-8"))).render(painter)
+    painter.end()
+    return QIcon(pixmap)
 
 
 def add_glass_shadow(widget):

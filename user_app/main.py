@@ -11,12 +11,16 @@ Run from the project root:
 import sys
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton, QStackedWidget, QVBoxLayout
+from PyQt5.QtWidgets import (
+    QApplication, QHBoxLayout, QMainWindow, QPushButton, QStackedWidget, QVBoxLayout, QWidget,
+)
 
 from user_app.ui import styles
 from user_app.ui.login_screen import LoginScreen
+from user_app.ui.monitor_screen import MonitorScreen
 from user_app.ui.register_screen import RegisterScreen
 from user_app.ui.widgets.glow_background import GlowBackground
+from user_app.ui.widgets.sidebar import Sidebar
 
 
 class MainWindow(QMainWindow):
@@ -34,6 +38,8 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.stack.addWidget(self.login_screen)
         self.stack.addWidget(self.register_screen)
+        self.app_shell = self._build_app_shell()   # sidebar + pages, shown after login
+        self.stack.addWidget(self.app_shell)
 
         # the glow background sits behind the deck (the screens are see-through)
         background = GlowBackground()
@@ -57,7 +63,29 @@ class MainWindow(QMainWindow):
 
         # 5. Start on the login screen
         self.show_login()
-        
+
+    def _build_app_shell(self):
+        """The part of the app after login: [sidebar | pages].
+        Each page is a screen; the sidebar chooses which one is shown."""
+        self.monitor_screen = MonitorScreen()
+        self.monitor_screen.start_requested.connect(lambda: print("Start Monitoring clicked"))
+
+        self.pages = QStackedWidget()
+        self.pages.addWidget(self.monitor_screen)
+        self.page_by_name = {"monitor": self.monitor_screen}
+
+        self.sidebar = Sidebar()
+        self.sidebar.page_selected.connect(lambda name: self.pages.setCurrentWidget(self.page_by_name[name]))
+        self.sidebar.logout_requested.connect(self.logout)
+
+        shell = QWidget()
+        layout = QHBoxLayout(shell)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(20)
+        layout.addWidget(self.sidebar)
+        layout.addWidget(self.pages, 1)
+        return shell
+
         # ------------------------------------------------------------ theme button
     def update_theme_button(self, theme_name):
         # the button shows the theme you will switch TO
@@ -91,8 +119,17 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentWidget(self.login_screen)
 
     def after_login(self, user):
-        """Login succeeded -> later we will open the Dashboard here."""
+        """Login succeeded -> open the app on the Monitor screen."""
         print(f"Logged in: {user['name']} ({user['email']})")
+        self.user = user
+        self.theme_button.hide()            # after login the theme switch is in the sidebar
+        self.sidebar.select_page("monitor")
+        self.stack.setCurrentWidget(self.app_shell)
+
+    def logout(self):
+        self.user = None
+        self.theme_button.show()
+        self.show_login()
 
 
 if __name__ == "__main__":
