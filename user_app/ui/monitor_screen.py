@@ -68,11 +68,24 @@ class MonitorScreen(QWidget):
 
     # ------------------------------------------------------------ layout
     def _build_ui(self):
-        root = QHBoxLayout(self)
+        # greeting header, directly on the background (text set by set_greeting)
+        self.greeting = QLabel("Hello", objectName="Title")
+
+        panels = QHBoxLayout()
+        panels.setSpacing(20)
+        panels.addWidget(self._build_camera_card(), 1)
+        panels.addWidget(self._build_checklist_panel())
+
+        root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(20)
-        root.addWidget(self._build_camera_card(), 1)
-        root.addWidget(self._build_checklist_panel())
+        root.setSpacing(16)
+        root.addWidget(self.greeting)
+        root.addLayout(panels, 1)
+
+    def set_greeting(self, first_name):
+        """ "Hello, {first_name}" - or just "Hello" for a guest / an account without a first name.
+        Gets first_name from the session (never a word taken from a full name)."""
+        self.greeting.setText(f"Hello, {first_name}" if first_name else "Hello")
 
     def _build_camera_card(self):
         card = QFrame(objectName="GlassPanel")
@@ -116,7 +129,18 @@ class MonitorScreen(QWidget):
         self.start_button.setCursor(Qt.PointingHandCursor)
         self.start_button.clicked.connect(self.start_requested.emit)
         layout.addWidget(self.start_button)
+
+        # shown only in guest mode (see set_guest)
+        self.guest_hint = QLabel("You're using ErgoMon as a guest. Nothing is saved.",
+                                 objectName="FieldHint", alignment=Qt.AlignCenter, wordWrap=True)
+        self.guest_hint.setContentsMargins(0, 10, 0, 0)   # gap only when visible
+        layout.addWidget(self.guest_hint)
+        self.guest_hint.hide()
         return panel
+
+    def set_guest(self, guest):
+        """Show or hide the guest hint under the Start button."""
+        self.guest_hint.setVisible(guest)
 
 
 # =====================================================================

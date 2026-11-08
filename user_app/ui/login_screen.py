@@ -12,14 +12,15 @@ import sys
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtWidgets import (
-    QApplication, QCheckBox, QFrame, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget,
+    QApplication, QCheckBox, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget,
 )
 
 from shared.auth_service import login
 from shared.database_service import get_user_profile
+from user_app.services.session import session
 from user_app.ui import styles
 from user_app.ui.brand_panel import build_brand_panel
+from user_app.ui.widgets.floating_field import FloatingField
 from user_app.ui.widgets.glow_background import GlowBackground
 
 # Firebase error codes -> friendly messages for the user
@@ -50,14 +51,17 @@ class LoginWorker(QThread):
         try:
             # Step 1: check email + password in Firebase Authentication
             result = login(self.email, self.password)
-            # Step 2: read the user's profile (name...) from Firestore
+            # Step 2: read the user's profile (first / last name) from Firestore
             profile = get_user_profile(result["localId"], result["idToken"])
 
             user = {
                 "uid": result["localId"],
                 "email": result["email"],
+                "first_name": profile.get("first_name", ""),
+                "last_name": profile.get("last_name", ""),
                 "id_token": result["idToken"],
-                "name": profile.get("name", ""),
+                "refresh_token": result["refreshToken"],
+                "expires_in": int(result["expiresIn"]),   # seconds until the ID token expires
             }
             self.succeeded.emit(user)
         except Exception as error:
@@ -73,7 +77,8 @@ class LoginWorker(QThread):
 # =====================================================================
 class LoginScreen(QWidget):
     logged_in = pyqtSignal(dict)    # sent after a successful login (with the user)
-    go_to_register = pyqtSignal()   # sent when "Sign up" is clicked
+    go_to_register = pyqtSignal()   # sent when "Create new account" is clicked
+    continue_as_guest = pyqtSignal()   # sent when "Continue without an account" is clicked
 
     def __init__(self):
         super().__init__()
@@ -86,11 +91,17 @@ class LoginScreen(QWidget):
     def _build_ui(self):
         # glass card on the right holds the form
         card = QFrame(objectName="GlassPanel")
-        card.setFixedSize(460, 580)
+        card.setFixedSize(460, 600)
         styles.add_glass_shadow(card)
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(0, 0, 0, 0)
         card_layout.addWidget(self._build_form())
+
+        # card + the calm guest option under it (outside the card, centered)
+        card_column = QVBoxLayout()
+        card_column.setSpacing(16)
+        card_column.addWidget(card)
+        card_column.addLayout(self._build_guest_row())
 
         # brand message on the left, directly on the background
         brand = build_brand_panel()
@@ -101,8 +112,22 @@ class LoginScreen(QWidget):
         root.addStretch()
         root.addWidget(brand, 0, Qt.AlignVCenter)
         root.addSpacing(64)
-        root.addWidget(card, 0, Qt.AlignVCenter)
+        root.addLayout(card_column)
+        root.setAlignment(card_column, Qt.AlignVCenter)
         root.addStretch()
+
+    def _build_guest_row(self):
+        """ "Just want to try it? Continue without an account ->" (muted text + link button)."""
+        self.guest_button = QPushButton("Continue without an account →", objectName="LinkButton")
+        self.guest_button.setCursor(Qt.PointingHandCursor)
+        self.guest_button.clicked.connect(self.continue_as_guest.emit)
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        row.addStretch()
+        row.addWidget(QLabel("Just want to try it?", objectName="Hint"))
+        row.addWidget(self.guest_button)
+        row.addStretch()
+        return row
 
     def _build_form(self):
         form = QWidget()
@@ -122,33 +147,31 @@ class LoginScreen(QWidget):
         layout.addWidget(self.banner)
         layout.addSpacing(12)
 
-        self.email_input, self.email_error = self._add_field(layout, "Email", "you@example.com")
-        self.password_input, self.password_error = self._add_field(
-            layout, "Password", "Your password", password=True)
+        self.email_input, self.email_error = self._add_field(layout, "Email")
+        self.password_input, self.password_error = self._add_field(layout, "Password", password=True)
 
-        self.show_password = QCheckBox("Show password")
-        self.show_password.toggled.connect(
-            lambda visible: self.password_input.setEchoMode(
-                QLineEdit.Normal if visible else QLineEdit.Password))
-        layout.addWidget(self.show_password)
-        layout.addSpacing(22)
+        # saves only the refresh token (never the password) - see user_app/services/session.py
+        self.remember_me = QCheckBox("Remember me")
+        self.remember_me.setCursor(Qt.PointingHandCursor)
+        layout.addWidget(self.remember_me)
+        layout.addSpacing(14)
 
         self.submit_button = QPushButton("Log in", objectName="PrimaryButton")
         self.submit_button.setCursor(Qt.PointingHandCursor)
         self.submit_button.clicked.connect(self._on_submit)
         layout.addWidget(self.submit_button)
-        layout.addSpacing(14)
+        layout.addSpacing(4)
 
-        register_row = QHBoxLayout()
-        register_row.setSpacing(6)
-        register_row.addStretch()
-        register_row.addWidget(QLabel("Don't have an account?", objectName="Hint"))
-        register_link = QPushButton("Sign up", objectName="LinkButton")
-        register_link.setCursor(Qt.PointingHandCursor)
-        register_link.clicked.connect(self.go_to_register.emit)
-        register_row.addWidget(register_link)
-        register_row.addStretch()
-        layout.addLayout(register_row)
+        forgot_button = QPushButton("Forgot password?", objectName="TextButton")
+        forgot_button.setCursor(Qt.PointingHandCursor)
+        # does nothing yet - the password reset flow will be connected here later
+        layout.addWidget(forgot_button)
+        layout.addSpacing(4)
+
+        register_button = QPushButton("Create new account", objectName="SecondaryButton")
+        register_button.setCursor(Qt.PointingHandCursor)
+        register_button.clicked.connect(self.go_to_register.emit)
+        layout.addWidget(register_button)
         layout.addStretch()
 
         # Enter key = click "Log in"
@@ -158,12 +181,8 @@ class LoginScreen(QWidget):
             field.textChanged.connect(lambda _, f=field: self._set_invalid(f, False))
         return form
 
-    def _add_field(self, layout, label, placeholder, password=False):
-        layout.addWidget(QLabel(label, objectName="FieldLabel"))
-        layout.addSpacing(6)
-        field = QLineEdit(placeholderText=placeholder)
-        if password:
-            field.setEchoMode(QLineEdit.Password)
+    def _add_field(self, layout, label, password=False):
+        field = FloatingField(label, password=password)   # label sits inside the box
         layout.addWidget(field)
         layout.addSpacing(4)
         error = QLabel("", objectName="FieldError")
@@ -180,14 +199,25 @@ class LoginScreen(QWidget):
         self._show_banner("Your account was created! Please log in.", "success")
         self.password_input.setFocus()
 
+    def show_message(self, text, kind="error"):
+        """Show a message at the top of the form (e.g. "Your session expired...")."""
+        self._show_banner(text, kind)
+
+    def show_signing_in(self):
+        """App start with a saved token: lock the button while we sign in automatically."""
+        self.submit_button.setEnabled(False)
+        self.submit_button.setText("Signing you in...")
+        self.guest_button.setEnabled(False)   # avoid guest mode and auto sign-in at the same time
+
     def reset(self):
         """Clear the form."""
         for field in (self.email_input, self.password_input):
             field.clear()
-            self._set_invalid(field, False)
-        self.show_password.setChecked(False)
+            self._set_invalid(field, False)   # clearing also hides the password again
+        self.remember_me.setChecked(False)
         self.banner.hide()
         self._set_loading(False)
+        self.guest_button.setEnabled(True)
 
     # ------------------------------------------------------------ behaviour
     def _set_invalid(self, field, invalid, message=""):
@@ -230,7 +260,9 @@ class LoginScreen(QWidget):
 
     def _on_success(self, user):
         self._set_loading(False)
-        self._show_banner(f"Welcome back, {user['name'] or user['email']}!", "success")
+        session.start(user, remember=self.remember_me.isChecked())
+        # first_name is used directly; old accounts without one are greeted by email
+        self._show_banner(f"Welcome back, {user['first_name'] or user['email']}!", "success")
         self.logged_in.emit(user)
 
     def _on_failure(self, message):

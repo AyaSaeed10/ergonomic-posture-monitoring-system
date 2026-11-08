@@ -6,7 +6,7 @@ from shared.firebase_config import PROJECT_ID
 FIRESTORE_URL = f"https://firestore.googleapis.com/v1/projects/{PROJECT_ID}/databases/(default)/documents"
 
 
-def create_user_profile(uid, id_token, name, email):
+def create_user_profile(uid, id_token, first_name, last_name, email):
     # 1. Where to save: collection "users", document named by the user's ID
     url = f"{FIRESTORE_URL}/users?documentId={uid}"
 
@@ -17,7 +17,8 @@ def create_user_profile(uid, id_token, name, email):
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     data = {
         "fields": {
-            "name": {"stringValue": name},
+            "first_name": {"stringValue": first_name},   # kept separate - never split a full name
+            "last_name": {"stringValue": last_name},
             "email": {"stringValue": email},
             "role": {"stringValue": "user"},
             "created_at": {"timestampValue": now},

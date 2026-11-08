@@ -13,8 +13,8 @@ import sys
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtWidgets import (
-    QApplication, QCheckBox, QFrame, QHBoxLayout,
-    QLabel, QLineEdit, QProgressBar, QPushButton, QVBoxLayout, QWidget,
+    QApplication, QFrame, QHBoxLayout,
+    QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget,
 )
 from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 
@@ -22,6 +22,7 @@ from shared.auth_service import register
 from shared.database_service import create_user_profile
 from user_app.ui import styles
 from user_app.ui.brand_panel import build_brand_panel
+from user_app.ui.widgets.floating_field import FloatingField
 from user_app.ui.widgets.glow_background import GlowBackground
 # Firebase error codes -> friendly messages for the user
 FIREBASE_ERRORS = {
@@ -42,18 +43,20 @@ class RegisterWorker(QThread):
     succeeded = pyqtSignal(dict)
     failed = pyqtSignal(str)
 
-    def __init__(self, name, email, password):
-            super().__init__()
-            self.name = name
-            self.email = email
-            self.password = password
+    def __init__(self, first_name, last_name, email, password):
+        super().__init__()
+        self.first_name = first_name
+        self.last_name = last_name
+        self.email = email
+        self.password = password
 
     def run(self):
         try:
             # Step 1: create the account in Firebase Authentication
             user = register(self.email, self.password)
-            # Step 2: save the profile in Firestore -> users/{uid}
-            create_user_profile(user["localId"], user["idToken"], self.name, self.email)
+            # Step 2: save the profile in Firestore -> users/{uid} (first / last name kept separate)
+            create_user_profile(user["localId"], user["idToken"],
+                                self.first_name, self.last_name, self.email)
             self.succeeded.emit(user)
         except Exception as error:
             code = str(error).split(" ")[0]
@@ -68,7 +71,7 @@ class RegisterWorker(QThread):
 # =====================================================================
 class RegisterScreen(QWidget):
     registered = pyqtSignal(str)   # sent after a successful registration
-    go_to_login = pyqtSignal()      # sent when "Log in" is clicked
+    go_to_login = pyqtSignal()      # sent when "I already have an account" is clicked
 
     def __init__(self):
         super().__init__()
@@ -83,7 +86,7 @@ class RegisterScreen(QWidget):
     def _build_ui(self):
         # glass card on the right holds the form
         card = QFrame(objectName="GlassPanel")
-        card.setFixedSize(460, 700)
+        card.setFixedSize(460, 710)
         styles.add_glass_shadow(card)
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(0, 0, 0, 0)
@@ -104,13 +107,13 @@ class RegisterScreen(QWidget):
     def _build_form(self):
         form = QWidget()
         layout = QVBoxLayout(form)
-        layout.setContentsMargins(56, 44, 56, 36)
+        layout.setContentsMargins(56, 30, 56, 24)
         layout.setSpacing(0)
 
         layout.addWidget(QLabel("Create your account", objectName="Title"))
         layout.addSpacing(6)
         layout.addWidget(QLabel("Start building healthier sitting habits today.", objectName="Subtitle"))
-        layout.addSpacing(18)
+        layout.addSpacing(12)
 
         self.banner = QLabel(objectName="Banner", wordWrap=True)
         self.banner.setMinimumHeight(40)
@@ -118,10 +121,22 @@ class RegisterScreen(QWidget):
         layout.addWidget(self.banner)
         layout.addSpacing(12)
 
-        self.name_input, self.name_error = self._add_field(layout, "Full name", " ")
-        self.email_input, self.email_error = self._add_field(layout, "Email", "you@example.com")
-        self.password_input, self.password_error = self._add_field(
-            layout, "Password", "At least 6 characters", password=True)
+        # "Name" heading + First name / Last name side by side, each with its own error
+        layout.addWidget(QLabel("Name", objectName="FieldLabel"))
+        layout.addSpacing(6)
+        name_row = QHBoxLayout()
+        name_row.setSpacing(12)
+        first_column, last_column = QVBoxLayout(), QVBoxLayout()
+        self.first_name_input, self.first_name_error = self._add_field(first_column, "First name")
+        self.last_name_input, self.last_name_error = self._add_field(last_column, "Last name")
+        name_row.addLayout(first_column)
+        name_row.addLayout(last_column)
+        layout.addLayout(name_row)
+
+        self.email_input, self.email_error = self._add_field(
+            layout, "Email",
+            hint="Use an email you can access. You'll need it to reset your password.")
+        self.password_input, self.password_error = self._add_field(layout, "Password", password=True)
 
         # password strength bar
         strength_row = QHBoxLayout()
@@ -134,61 +149,48 @@ class RegisterScreen(QWidget):
         strength_row.addWidget(self.strength_bar)
         strength_row.addWidget(self.strength_label)
         layout.addLayout(strength_row)
-        layout.addSpacing(10)
+        layout.addSpacing(6)
 
         self.confirm_input, self.confirm_error = self._add_field(
-            layout, "Confirm password", "Repeat your password", password=True)
-
-        self.show_password = QCheckBox("Show password")
-        self.show_password.toggled.connect(self._toggle_password_visibility)
-        layout.addWidget(self.show_password)
-        layout.addSpacing(18)
+            layout, "Confirm password", password=True)
+        layout.addSpacing(10)
 
         self.submit_button = QPushButton("Create account", objectName="PrimaryButton")
         self.submit_button.setCursor(Qt.PointingHandCursor)
         self.submit_button.clicked.connect(self._on_submit)
         layout.addWidget(self.submit_button)
-        layout.addSpacing(14)
+        layout.addSpacing(8)
 
-        login_row = QHBoxLayout()
-        login_row.addStretch()
-        login_row.setSpacing(6)
-        login_row.addWidget(QLabel("Already have an account?", objectName="Hint"))
-        login_link = QPushButton("Log in", objectName="LinkButton")
-        login_link.setCursor(Qt.PointingHandCursor)
-        login_link.clicked.connect(self.go_to_login.emit)
-        login_row.addWidget(login_link)
-        login_row.addStretch()
-        layout.addLayout(login_row)
+        login_button = QPushButton("I already have an account", objectName="SecondaryButton")
+        login_button.setCursor(Qt.PointingHandCursor)
+        login_button.clicked.connect(self.go_to_login.emit)
+        layout.addWidget(login_button)
         layout.addStretch()
 
         # live behaviour
         self.password_input.textChanged.connect(self._update_strength)
         self.confirm_input.returnPressed.connect(self._on_submit)
-        for field in (self.name_input, self.email_input, self.password_input, self.confirm_input):
+        for field in self._fields():
             field.textChanged.connect(lambda _, f=field: self._set_invalid(f, False))
         return form
 
-    def _add_field(self, layout, label, placeholder, password=False):
-        layout.addWidget(QLabel(label, objectName="FieldLabel"))
-        layout.addSpacing(6)
-        field = QLineEdit(placeholderText=placeholder)
-        if password:
-            field.setEchoMode(QLineEdit.Password)
+    def _fields(self):
+        return (self.first_name_input, self.last_name_input, self.email_input,
+                self.password_input, self.confirm_input)
+
+    def _add_field(self, layout, label, password=False, hint=None):
+        field = FloatingField(label, password=password)   # label sits inside the box
         layout.addWidget(field)
-        layout.addSpacing(4)
+        if hint:                                          # short muted help text under the box
+            layout.addSpacing(4)
+            layout.addWidget(QLabel(hint, objectName="FieldHint", wordWrap=True))
+        layout.addSpacing(2)
         error = QLabel("", objectName="FieldError")
-        error.setFixedHeight(16)
+        error.setFixedHeight(16)   # room for the error is always kept -> nothing moves or overlaps
         layout.addWidget(error)
-        layout.addSpacing(4)
         return field, error
 
     # ------------------------------------------------------------ behaviour
-    def _toggle_password_visibility(self, visible):
-        mode = QLineEdit.Normal if visible else QLineEdit.Password
-        self.password_input.setEchoMode(mode)
-        self.confirm_input.setEchoMode(mode)
-
     def _update_strength(self, password):
         score = sum([
             len(password) >= 6,
@@ -208,19 +210,22 @@ class RegisterScreen(QWidget):
         field.setProperty("invalid", invalid)
         field.style().unpolish(field)
         field.style().polish(field)
-        errors = {self.name_input: self.name_error, self.email_input: self.email_error,
+        errors = {self.first_name_input: self.first_name_error,
+                  self.last_name_input: self.last_name_error, self.email_input: self.email_error,
                   self.password_input: self.password_error, self.confirm_input: self.confirm_error}
         errors[field].setText(message)
 
     def _validate(self):
         """Check the form before sending anything to Firebase."""
-        name = self.name_input.text().strip()
         email = self.email_input.text().strip()
         password = self.password_input.text()
         confirm = self.confirm_input.text()
         ok = True
-        if not name:
-            self._set_invalid(self.name_input, True, "Please enter your name")
+        if not self.first_name_input.text().strip():
+            self._set_invalid(self.first_name_input, True, "Please enter your first name")
+            ok = False
+        if not self.last_name_input.text().strip():
+            self._set_invalid(self.last_name_input, True, "Please enter your last name")
             ok = False
         if not EMAIL_PATTERN.match(email):
             self._set_invalid(self.email_input, True, "Please enter a valid email")
@@ -250,7 +255,8 @@ class RegisterScreen(QWidget):
             return
         self._set_loading(True)
         self.worker = RegisterWorker(
-            self.name_input.text().strip(),
+            self.first_name_input.text().strip(),
+            self.last_name_input.text().strip(),
             self.email_input.text().strip(),
             self.password_input.text(),
         )
@@ -260,19 +266,18 @@ class RegisterScreen(QWidget):
 
     def _on_success(self, user):
         self._set_loading(False)
-        name = self.name_input.text().strip()
+        first_name = self.first_name_input.text().strip()
         email = self.email_input.text().strip()
-        self._show_banner(f"Welcome to ErgoMon, {name}! Taking you to log in...", "success")
+        self._show_banner(f"Welcome to ErgoMon, {first_name}! Taking you to log in...", "success")
         self.submit_button.setEnabled(False)
         # wait 1.5 seconds so the user can read the message, then tell the main window
         QTimer.singleShot(1500, lambda: self.registered.emit(email))
 
     def reset(self):
         """Clear the form (called by the main window when leaving this screen)."""
-        for field in (self.name_input, self.email_input, self.password_input, self.confirm_input):
+        for field in self._fields():
             field.clear()
-            self._set_invalid(field, False)
-        self.show_password.setChecked(False)
+            self._set_invalid(field, False)   # clearing also hides the passwords again
         self.banner.hide()
         self._set_loading(False)
 

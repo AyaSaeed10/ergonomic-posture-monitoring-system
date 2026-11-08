@@ -71,6 +71,7 @@ DARK = {
     "DISABLED_TEXT": "#6B7489",
     "LINK": "#8E9AFF",
     "LINK_HOVER": "#B4BCFF",
+    "LINK_HOVER_BG": rgba(108, 123, 255, 0.10),
     # colors with meaning
     "SUCCESS": "#34E3A4",   # good
     "WARNING": "#FFB547",
@@ -122,6 +123,7 @@ LIGHT = {
     "DISABLED_TEXT": "#8A93A8",
     "LINK": "#4F5BE0",
     "LINK_HOVER": "#3A45C2",
+    "LINK_HOVER_BG": rgba(79, 91, 224, 0.07),
     "SUCCESS": "#087A54",
     "WARNING": "#955800",
     "ERROR": "#C23A27",
@@ -193,6 +195,7 @@ QMainWindow, QStackedWidget, #Root {{ background: transparent; }}
 #FieldLabel {{ font-size: 13px; font-weight: 600; color: {c["LABEL"]}; }}
 #FieldError {{ font-size: 12px; font-weight: 500; color: {c["ERROR"]}; }}
 #Hint {{ font-size: 13px; color: {c["MUTED"]}; }}
+#FieldHint {{ font-size: 12px; color: {c["MUTED"]}; }}
 
 QLineEdit {{
     min-height: 44px;
@@ -208,6 +211,11 @@ QLineEdit {{
 QLineEdit:hover {{ border-color: {c["INPUT_BORDER_HOVER"]}; }}
 QLineEdit:focus {{ border-color: {c["PRIMARY_START"]}; background: {c["INPUT_FOCUS_BG"]}; }}
 QLineEdit[invalid="true"] {{ border-color: {c["ERROR"]}; background: {c["ERROR_BG"]}; }}
+
+/* floating-label field: taller, typed text sits below the floated label */
+QLineEdit#FloatingField {{ min-height: 38px; padding: 16px 14px 0 14px; }}   /* 38 + 16 padding + border = 56px box */
+#EyeButton {{ background: transparent; border: none; border-radius: 8px; }}
+#EyeButton:hover {{ background: {c["HOVER_BG"]}; }}
 
 QCheckBox {{ color: {c["MUTED"]}; font-size: 13px; spacing: 8px; background: transparent; }}
 QCheckBox::indicator {{
@@ -247,6 +255,29 @@ QProgressBar {{
                                 stop:0 {c["PRIMARY_PRESSED_START"]}, stop:1 {c["PRIMARY_PRESSED_END"]});
 }}
 #PrimaryButton:disabled {{ background: {c["DISABLED_BG"]}; color: {c["DISABLED_TEXT"]}; }}
+
+#SecondaryButton {{
+    background: transparent;
+    color: {c["LINK"]};
+    border: 1.5px solid {c["LINK"]};
+    border-radius: 14px;
+    min-height: 44px;   /* + border (Qt draws 1.5px as 2px per side) = 48px, same as the other buttons */
+    font-size: 15px;
+    font-weight: 600;
+}}
+#SecondaryButton:hover {{ background: {c["LINK_HOVER_BG"]}; color: {c["LINK_HOVER"]}; border-color: {c["LINK_HOVER"]}; }}
+
+/* plain text button (e.g. "Forgot password?"): soft rounded fill only on hover */
+#TextButton {{
+    background: transparent;
+    color: {c["MUTED"]};
+    border: none;
+    border-radius: 14px;
+    min-height: 48px;
+    font-size: 14px;
+    font-weight: 600;
+}}
+#TextButton:hover {{ background: {c["HOVER_BG"]}; color: {c["TEXT"]}; }}
 
 #LinkButton {{
     background: transparent;

@@ -1,0 +1,8 @@
+# ErgoMon - libraries the app uses directly (versions pinned from the project's .venv, Python 3.10).
+# pip installs their own dependencies automatically.
+# Will be added when the posture pipeline code is written:
+#   opencv-python, mediapipe==0.10.9, numpy, scikit-learn
+
+PyQt5==5.15.11      # desktop UI
+requests==2.34.2    # Firebase REST API calls
+keyring==25.7.0     # "Remember me": stores the login token in Windows Credential Manager
