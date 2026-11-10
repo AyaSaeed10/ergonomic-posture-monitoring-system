@@ -112,6 +112,11 @@ class MainWindow(QMainWindow):
         """Runs every time the window changes size - keep the button in the corner."""
         super().resizeEvent(event)
         self.place_theme_button()
+
+    def closeEvent(self, event):
+        """Runs when the window is closed - turn the camera off first."""
+        self.monitor_screen.stop_camera()
+        super().closeEvent(event)
         
     # ------------------------------------------------------------ navigation
     def show_login(self):
@@ -150,6 +155,7 @@ class MainWindow(QMainWindow):
         # refreshed every time the app opens, so it always matches the current user (or guest)
         self.monitor_screen.set_greeting("" if guest else session.first_name)
         self.sidebar.select_page("monitor")   # -> show_page("monitor") (through the guard)
+        self.monitor_screen.start_camera()
 
     # ------------------------------------------------------------ access guard
     def show_page(self, name):
@@ -178,11 +184,13 @@ class MainWindow(QMainWindow):
 
     def leave_guest(self):
         """Guest -> Login. Does NOT call session.clear(), so a saved "Remember me" token stays."""
+        self.monitor_screen.stop_camera()
         session.end_guest()
         self.theme_button.show()
         self.show_login()
 
     def logout(self):
+        self.monitor_screen.stop_camera()
         session.clear()                     # also deletes the saved "Remember me" token
         self.theme_button.show()
         self.show_login()

@@ -89,6 +89,7 @@ DARK = {
     "ICON_ACTIVE": "#FFFFFF",
     # camera area
     "CAMERA_BG": "#0B0F1C",
+    "POPUP_BG": "#1D2027",   # GLASS_TOP (9% white) over BACKGROUND, pre-mixed (popups are separate windows)
     "TOOLTIP_BG": rgba(10, 14, 28, 0.78),
     "TOOLTIP_BORDER": rgba(255, 255, 255, 0.14),
 }
@@ -138,6 +139,7 @@ LIGHT = {
     "ICON": "#5C6680",
     "ICON_ACTIVE": "#FFFFFF",
     "CAMERA_BG": "#E1E5F2",
+    "POPUP_BG": "#FAFBFE",   # GLASS_TOP (72% white) over BACKGROUND, pre-mixed (popups are separate windows)
     "TOOLTIP_BG": rgba(255, 255, 255, 0.88),
     "TOOLTIP_BORDER": rgba(20, 30, 70, 0.10),
 }
@@ -356,6 +358,30 @@ QToolTip {{
     color: {c["MUTED"]};
     font-size: 14px;
 }}
+#CameraSelect {{
+    background: {c["INPUT_BG"]};
+    border: 1px solid {c["INPUT_BORDER"]};
+    border-radius: 12px;
+    padding: 0 12px;
+    color: {c["TEXT"]};
+    font-size: 13px;
+    font-weight: 600;
+}}
+#CameraSelect:hover {{ border-color: {c["INPUT_BORDER_HOVER"]}; }}
+#CameraSelect:focus, #CameraSelect:on {{ border-color: {c["PRIMARY_START"]}; background: {c["INPUT_FOCUS_BG"]}; }}
+#CameraSelect:disabled {{ color: {c["MUTED"]}; border-color: {c["BORDER"]}; }}
+#CameraSelect::drop-down {{ border: none; width: 24px; }}
+#CameraSelect QAbstractItemView {{
+    background: {c["POPUP_BG"]};
+    border: 1px solid {c["GLASS_BORDER"]};
+    border-radius: 12px;
+    padding: 4px;
+    outline: none;
+    color: {c["TEXT"]};
+}}
+#CameraSelect QAbstractItemView::item {{ min-height: 32px; padding: 0 8px; border-radius: 8px; }}
+#CameraSelect QAbstractItemView::item:hover {{ background: {c["HOVER_BG"]}; }}
+#CameraSelect QAbstractItemView::item:selected {{ background: {c["PRIMARY_START"]}; color: white; }}
 """
 
 
