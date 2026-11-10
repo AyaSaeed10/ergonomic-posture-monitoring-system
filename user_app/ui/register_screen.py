@@ -2,7 +2,11 @@
 Register screen - FRONTEND.
 
 Shows the registration form. When the user clicks "Create account",
-it calls register() from shared/auth_service.py (which talks to Firebase).
+it calls shared/auth_service.py (which talks to Firebase):
+  1. register()                - creates the account (not verified yet)
+  2. set_display_name()        - keeps the name until the email is verified
+  3. send_verification_email() - Firebase emails a verification link
+The Firestore profile is created later, on the first VERIFIED login.
 
 Run this screen alone (from the project root):
     python -m user_app.ui.register_screen
@@ -11,26 +15,27 @@ Run this screen alone (from the project root):
 import re
 import sys
 
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (
     QApplication, QFrame, QHBoxLayout,
     QLabel, QProgressBar, QPushButton, QVBoxLayout, QWidget,
 )
-from PyQt5.QtCore import Qt, QThread, QTimer, pyqtSignal
 
-from shared.auth_service import register
-from shared.database_service import create_user_profile
+from shared.auth_service import (
+    delete_account, is_email_verified, login, register,
+    send_verification_email, set_display_name,
+)
 from user_app.ui import styles
 from user_app.ui.brand_panel import build_brand_panel
 from user_app.ui.widgets.floating_field import FloatingField
 from user_app.ui.widgets.glow_background import GlowBackground
+
 # Firebase error codes -> friendly messages for the user
 FIREBASE_ERRORS = {
     "EMAIL_EXISTS": "This email is already registered. Try logging in.",
     "INVALID_EMAIL": "The email address is not valid.",
     "WEAK_PASSWORD": "Password must be at least 6 characters.",
     "TOO_MANY_ATTEMPTS_TRY_LATER": "Too many attempts. Please try again later.",
-    "PERMISSION_DENIED": "Could not save your profile (database permission denied).",
 }
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -52,11 +57,18 @@ class RegisterWorker(QThread):
 
     def run(self):
         try:
-            # Step 1: create the account in Firebase Authentication
-            user = register(self.email, self.password)
-            # Step 2: save the profile in Firestore -> users/{uid} (first / last name kept separate)
-            create_user_profile(user["localId"], user["idToken"],
-                                self.first_name, self.last_name, self.email)
+            # Step 1: create the account (or reuse an unverified one - see below)
+            user = self._create_or_reuse_account()
+            try:
+                # Step 2: keep the name in Authentication until the email is verified
+                full_name = f"{self.first_name} {self.last_name}".strip()
+                set_display_name(user["idToken"], full_name)
+                # Step 3: Firebase sends the verification email
+                send_verification_email(user["idToken"])
+            except Exception:
+                # something failed half-way -> delete the account, as if nothing happened
+                delete_account(user["idToken"])
+                raise
             self.succeeded.emit(user)
         except Exception as error:
             code = str(error).split(" ")[0]
@@ -64,23 +76,37 @@ class RegisterWorker(QThread):
                 self.failed.emit("No internet connection. Please check your network.")
             else:
                 self.failed.emit(FIREBASE_ERRORS.get(code, f"Registration failed: {error}"))
-
+    def _create_or_reuse_account(self):
+        """Create a new account. If the email already exists but was never verified
+        and the password matches, reuse it (the user just needs a new email)."""
+        try:
+            return register(self.email, self.password)
+        except Exception as error:
+            if str(error) != "EMAIL_EXISTS":
+                raise
+            try:
+                user = login(self.email, self.password)
+            except Exception:
+                raise error from None      # different password -> someone else's account
+            if is_email_verified(user["idToken"]):
+                raise error                # a real, verified account -> "already registered"
+            return user                    # unverified account with the same password -> reuse it
 
 # =====================================================================
 # The screen
 # =====================================================================
 class RegisterScreen(QWidget):
-    registered = pyqtSignal(str)   # sent after a successful registration
+    registered = pyqtSignal(str)    # sent after a successful registration (with the email)
     go_to_login = pyqtSignal()      # sent when "I already have an account" is clicked
 
     def __init__(self):
         super().__init__()
         self.setObjectName("Root")
         self.setAttribute(Qt.WA_StyledBackground, True)
-        # when the theme changes, repaint the password strength bar in the new colors
-        styles.theme.changed.connect(lambda _: self._update_strength(self.password_input.text())) 
         self.worker = None
         self._build_ui()
+        # when the theme changes, repaint the password strength bar in the new colors
+        styles.theme.changed.connect(lambda _: self._update_strength(self.password_input.text()))
 
     # ------------------------------------------------------------ layout
     def _build_ui(self):
@@ -135,7 +161,7 @@ class RegisterScreen(QWidget):
 
         self.email_input, self.email_error = self._add_field(
             layout, "Email",
-            hint="Use an email you can access. You'll need it to reset your password.")
+            hint="Use an email you can access. We'll send you a verification link.")
         self.password_input, self.password_error = self._add_field(layout, "Password", password=True)
 
         # password strength bar
@@ -266,12 +292,15 @@ class RegisterScreen(QWidget):
 
     def _on_success(self, user):
         self._set_loading(False)
-        first_name = self.first_name_input.text().strip()
         email = self.email_input.text().strip()
-        self._show_banner(f"Welcome to ErgoMon, {first_name}! Taking you to log in...", "success")
+        self._show_banner(f"We sent a verification email to {email}. Taking you to log in...", "success")
         self.submit_button.setEnabled(False)
-        # wait 1.5 seconds so the user can read the message, then tell the main window
-        QTimer.singleShot(1500, lambda: self.registered.emit(email))
+        # wait 2.5 seconds so the user can read the message, then tell the main window
+        QTimer.singleShot(2500, lambda: self.registered.emit(email))
+
+    def _on_failure(self, message):
+        self._set_loading(False)
+        self._show_banner(message, "error")
 
     def reset(self):
         """Clear the form (called by the main window when leaving this screen)."""
@@ -280,10 +309,6 @@ class RegisterScreen(QWidget):
             self._set_invalid(field, False)   # clearing also hides the passwords again
         self.banner.hide()
         self._set_loading(False)
-
-    def _on_failure(self, message):
-        self._set_loading(False)
-        self._show_banner(message, "error")
 
 
 # =====================================================================

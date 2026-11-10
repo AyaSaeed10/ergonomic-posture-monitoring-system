@@ -44,6 +44,8 @@ def get_user_profile(uid, id_token):
     response = requests.get(url, headers=headers)
     result = response.json()
 
+    if response.status_code == 404:      # no profile yet (first login)
+        return {}
     if not response.ok:
         raise Exception(result["error"]["status"])
 

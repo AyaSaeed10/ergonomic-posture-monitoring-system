@@ -15,8 +15,8 @@ from PyQt5.QtWidgets import (
     QApplication, QCheckBox, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget,
 )
 
-from shared.auth_service import login
-from shared.database_service import get_user_profile
+from shared.auth_service import is_email_verified, login, send_password_reset_email
+from shared.database_service import create_user_profile, get_user_profile
 from user_app.services.session import session
 from user_app.ui import styles
 from user_app.ui.brand_panel import build_brand_panel
@@ -32,6 +32,7 @@ FIREBASE_ERRORS = {
     "USER_DISABLED": "This account has been disabled.",
     "TOO_MANY_ATTEMPTS_TRY_LATER": "Too many failed attempts. Please try again later.",
     "PERMISSION_DENIED": "Could not load your profile (database permission denied).",
+    "EMAIL_NOT_VERIFIED": "Please verify your email first - check your inbox (and spam folder).",
 }
 
 
@@ -49,27 +50,68 @@ class LoginWorker(QThread):
 
     def run(self):
         try:
-            # Step 1: check email + password in Firebase Authentication
+            # Step 1: check email + password
             result = login(self.email, self.password)
-            # Step 2: read the user's profile (first / last name) from Firestore
-            profile = get_user_profile(result["localId"], result["idToken"])
+            uid, token = result["localId"], result["idToken"]
 
+            # Step 2: block users who did not click the link in the email
+            if not is_email_verified(token):
+                raise Exception("EMAIL_NOT_VERIFIED")
+
+            # Step 3: read the profile - create it on the first verified login
+            profile = get_user_profile(uid, token)
+            if not profile:
+                # displayName was saved at registration as "First Last"
+                full_name = result.get("displayName", "")
+                first_name, _, last_name = full_name.partition(" ")
+                create_user_profile(uid, token, first_name, last_name, result["email"])
+                profile = {"first_name": first_name, "last_name": last_name}
+
+            # Step 4: everything the app needs about the logged-in user
+                        # Step 4: everything the app needs about the logged-in user
+            first_name = profile.get("first_name", "")
+            last_name = profile.get("last_name", "")
             user = {
-                "uid": result["localId"],
+                "uid": uid,
                 "email": result["email"],
-                "first_name": profile.get("first_name", ""),
-                "last_name": profile.get("last_name", ""),
-                "id_token": result["idToken"],
+                "id_token": token,
                 "refresh_token": result["refreshToken"],
-                "expires_in": int(result["expiresIn"]),   # seconds until the ID token expires
+                "expires_in": int(result["expiresIn"]),
+                "first_name": first_name,
+                "last_name": last_name,
+                "name": f"{first_name} {last_name}".strip(),
             }
             self.succeeded.emit(user)
+
         except Exception as error:
             code = str(error).split(" ")[0]
             if "ConnectionError" in type(error).__name__ or "Max retries" in str(error):
                 self.failed.emit("No internet connection. Please check your network.")
             else:
                 self.failed.emit(FIREBASE_ERRORS.get(code, f"Login failed: {error}"))
+
+
+class ResetPasswordWorker(QThread):
+    """Sends the password-reset email in the background."""
+    succeeded = pyqtSignal()
+    failed = pyqtSignal(str)
+
+    def __init__(self, email):
+        super().__init__()
+        self.email = email
+
+    def run(self):
+        try:
+            send_password_reset_email(self.email)
+            self.succeeded.emit()
+        except Exception as error:
+            code = str(error).split(" ")[0]
+            if code == "EMAIL_NOT_FOUND":
+                self.succeeded.emit()   # same message as success - don't reveal who is registered
+            elif "ConnectionError" in type(error).__name__ or "Max retries" in str(error):
+                self.failed.emit("No internet connection. Please check your network.")
+            else:
+                self.failed.emit(FIREBASE_ERRORS.get(code, f"Could not send the email: {error}"))
 
 
 # =====================================================================
@@ -85,6 +127,7 @@ class LoginScreen(QWidget):
         self.setObjectName("Root")
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.worker = None
+        self.reset_worker = None
         self._build_ui()
 
     # ------------------------------------------------------------ layout
@@ -162,10 +205,10 @@ class LoginScreen(QWidget):
         layout.addWidget(self.submit_button)
         layout.addSpacing(4)
 
-        forgot_button = QPushButton("Forgot password?", objectName="TextButton")
-        forgot_button.setCursor(Qt.PointingHandCursor)
-        # does nothing yet - the password reset flow will be connected here later
-        layout.addWidget(forgot_button)
+        self.forgot_button = QPushButton("Forgot password?", objectName="TextButton")
+        self.forgot_button.setCursor(Qt.PointingHandCursor)
+        self.forgot_button.clicked.connect(self._on_forgot_password)
+        layout.addWidget(self.forgot_button)
         layout.addSpacing(4)
 
         register_button = QPushButton("Create new account", objectName="SecondaryButton")
@@ -196,7 +239,7 @@ class LoginScreen(QWidget):
         """Called right after registration: fill the email and show a green message."""
         self.reset()
         self.email_input.setText(email)
-        self._show_banner("Your account was created! Please log in.", "success")
+        self._show_banner("Check your email and click the verification link, then log in.", "success")
         self.password_input.setFocus()
 
     def show_message(self, text, kind="error"):
@@ -268,6 +311,35 @@ class LoginScreen(QWidget):
     def _on_failure(self, message):
         self._set_loading(False)
         self._show_banner(message, "error")
+
+    # ------------------------------------------------------------ forgot password
+    def _on_forgot_password(self):
+        self.banner.hide()
+        email = self.email_input.text().strip()
+        if not email:
+            self._set_invalid(self.email_input, True, "Enter your email first, then click 'Forgot password?'")
+            self.email_input.setFocus()
+            return
+        self.forgot_button.setEnabled(False)
+        self.forgot_button.setText("Sending...")
+        self.reset_worker = ResetPasswordWorker(email)
+        self.reset_worker.succeeded.connect(lambda: self._on_reset_done(email))
+        self.reset_worker.failed.connect(self._on_reset_failed)
+        self.reset_worker.start()
+
+    def _on_reset_done(self, email):
+        self._restore_forgot_button()
+        self._show_banner(
+            f"If an account exists for {email}, we sent a password reset link. "
+            "Check your inbox (and spam folder).", "success")
+
+    def _on_reset_failed(self, message):
+        self._restore_forgot_button()
+        self._show_banner(message, "error")
+
+    def _restore_forgot_button(self):
+        self.forgot_button.setEnabled(True)
+        self.forgot_button.setText("Forgot password?")
 
 
 # =====================================================================
