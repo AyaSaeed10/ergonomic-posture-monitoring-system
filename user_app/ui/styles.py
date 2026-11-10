@@ -382,6 +382,64 @@ QToolTip {{
 #CameraSelect QAbstractItemView::item {{ min-height: 32px; padding: 0 8px; border-radius: 8px; }}
 #CameraSelect QAbstractItemView::item:hover {{ background: {c["HOVER_BG"]}; }}
 #CameraSelect QAbstractItemView::item:selected {{ background: {c["PRIMARY_START"]}; color: white; }}
+
+/* ---------- danger button (delete) - ERROR used only for its meaning ---------- */
+#DangerButton {{
+    background: {c["ERROR_BG"]};
+    border: 1.5px solid {c["ERROR_BORDER"]};
+    color: {c["ERROR"]};
+    border-radius: 14px;
+    min-height: 48px;
+    font-size: 15px;
+    font-weight: 600;
+}}
+#DangerButton:hover {{ border-color: {c["ERROR"]}; }}
+#DangerButton:disabled {{
+    background: {c["DISABLED_BG"]};
+    border-color: transparent;
+    color: {c["DISABLED_TEXT"]};
+}}
+
+/* ---------- data table (admin lists) ---------- */
+#DataTable {{
+    background: transparent;
+    border: 1px solid {c["BORDER"]};
+    border-radius: 12px;
+    color: {c["TEXT"]};
+}}
+#DataTable QHeaderView {{ background: transparent; border: none; }}
+#DataTable QHeaderView::section {{
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid {c["BORDER"]};
+    padding: 12px 14px;
+    color: {c["MUTED"]};
+    font-size: 13px;
+    font-weight: 600;
+}}
+#DataTable::item {{ padding: 0 14px; border-bottom: 1px solid {c["BORDER"]}; }}
+#DataTable::indicator {{
+    width: 16px; height: 16px;
+    border: 1.5px solid {c["INPUT_BORDER_HOVER"]};
+    border-radius: 5px;
+    background: {c["INPUT_BG"]};
+}}
+#DataTable::indicator:checked {{
+    background: {c["PRIMARY_START"]};
+    border-color: {c["PRIMARY_START"]};
+}}
+
+/* ---------- number input (same look as QLineEdit) ---------- */
+QSpinBox {{
+    min-height: 36px;
+    background: {c["INPUT_BG"]};
+    border: 1.5px solid {c["INPUT_BORDER"]};
+    border-radius: 12px;
+    padding: 0 10px;
+    color: {c["TEXT"]};
+}}
+QSpinBox:hover {{ border-color: {c["INPUT_BORDER_HOVER"]}; }}
+QSpinBox:focus {{ border-color: {c["PRIMARY_START"]}; background: {c["INPUT_FOCUS_BG"]}; }}
 """
 
 
@@ -459,3 +517,4 @@ class ThemeManager(QObject):
 
 
 theme = ThemeManager()
+

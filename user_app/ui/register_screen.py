@@ -76,6 +76,7 @@ class RegisterWorker(QThread):
                 self.failed.emit("No internet connection. Please check your network.")
             else:
                 self.failed.emit(FIREBASE_ERRORS.get(code, f"Registration failed: {error}"))
+
     def _create_or_reuse_account(self):
         """Create a new account. If the email already exists but was never verified
         and the password matches, reuse it (the user just needs a new email)."""
@@ -90,7 +91,7 @@ class RegisterWorker(QThread):
                 raise error from None      # different password -> someone else's account
             if is_email_verified(user["idToken"]):
                 raise error                # a real, verified account -> "already registered"
-            return user                    # unverified account with the same password -> reuse it
+            return user                    # unverified account with the same password -> reuse it                   # unverified account with the same password -> reuse it
 
 # =====================================================================
 # The screen
