@@ -54,3 +54,30 @@ def get_user_profile(uid, id_token):
     for field_name, typed_value in result.get("fields", {}).items():
         profile[field_name] = list(typed_value.values())[0]
     return profile
+
+
+ # Profile Page
+def update_user_profile(uid, id_token, first_name, last_name):
+    """Change the user's first and last name in Firestore (other fields stay as they are)."""
+    # updateMask = "change ONLY these fields" (without it, Firestore would replace the whole document)
+    url = (f"{FIRESTORE_URL}/users/{uid}"
+           "?updateMask.fieldPaths=first_name&updateMask.fieldPaths=last_name")
+    headers = {"Authorization": f"Bearer {id_token}"}
+    data = {
+        "fields": {
+            "first_name": {"stringValue": first_name},
+            "last_name": {"stringValue": last_name},
+        }
+    }
+    response = requests.patch(url, json=data, headers=headers)
+    if not response.ok:
+        raise Exception(response.json()["error"]["status"])
+
+
+def delete_user_profile(uid, id_token):
+    """Delete the user's document users/{uid} from Firestore."""
+    url = f"{FIRESTORE_URL}/users/{uid}"
+    headers = {"Authorization": f"Bearer {id_token}"}
+    response = requests.delete(url, headers=headers)
+    if not response.ok:
+        raise Exception(response.json()["error"]["status"])

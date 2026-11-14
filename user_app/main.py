@@ -22,7 +22,7 @@ from user_app.ui.monitor_screen import MonitorScreen
 from user_app.ui.register_screen import RegisterScreen
 from user_app.ui.widgets.glow_background import GlowBackground
 from user_app.ui.widgets.sidebar import GUEST_PAGES, Sidebar
-
+from user_app.ui.profile_screen import ProfileScreen
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -80,9 +80,19 @@ class MainWindow(QMainWindow):
         self.monitor_screen = MonitorScreen()
         self.monitor_screen.start_requested.connect(lambda: print("Start Monitoring clicked"))
 
+        self.profile_screen = ProfileScreen()
+        self.profile_screen.profile_updated.connect(self.on_profile_updated)
+        self.profile_screen.tokens_changed.connect(
+            lambda tokens: session.update_tokens(**tokens))
+        self.profile_screen.account_deleted.connect(self.on_account_deleted)
+
         self.pages = QStackedWidget()
         self.pages.addWidget(self.monitor_screen)
-        self.page_by_name = {"monitor": self.monitor_screen}
+        self.pages.addWidget(self.profile_screen)
+        self.page_by_name = {
+            "monitor": self.monitor_screen,
+            "profile": self.profile_screen,
+        }
 
         self.sidebar = Sidebar()
         self.sidebar.page_selected.connect(self.show_page)
@@ -163,6 +173,7 @@ class MainWindow(QMainWindow):
         signed in -> every page; guest -> only GUEST_PAGES; signed out -> Login.
         (This only prevents mistakes in the app - real data protection is the
         Firestore security rules.)"""
+
         state = session.state
         if state == "signed_out":
             self.show_login()
@@ -172,6 +183,10 @@ class MainWindow(QMainWindow):
             return
         if name not in self.page_by_name:   # page not built yet
             return
+        if name == "profile":               # always show the current user's details
+            self.profile_screen.load_user(self._session_user())
+        self.pages.setCurrentWidget(self.page_by_name[name])
+        self.stack.setCurrentWidget(self.app_shell)
         self.pages.setCurrentWidget(self.page_by_name[name])
         self.stack.setCurrentWidget(self.app_shell)
 
@@ -206,7 +221,26 @@ class MainWindow(QMainWindow):
         if reason == "network":             # the saved token is kept for next time
             self.login_screen.show_message("No internet connection. Please try again.")
 
+        # ------------------------------------------------------------ profile
+    def _session_user(self):
+        """The signed-in user as a dict, for the Profile screen."""
+        return {
+            "uid": session.uid,
+            "email": session.email,
+            "id_token": session.id_token,
+            "first_name": session.first_name,
+            "last_name": session.last_name,
+        }
 
+    def on_profile_updated(self, names):
+        """Name saved -> update the session and the "Hello, ..." greeting."""
+        session.update_name(names["first_name"], names["last_name"])
+        self.monitor_screen.set_greeting(session.first_name)
+
+    def on_account_deleted(self):
+        """The account no longer exists -> log out and say so on the Login screen."""
+        self.logout()
+        self.login_screen.show_message("Your account was deleted.", "success")
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     styles.theme.apply()

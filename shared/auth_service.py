@@ -84,6 +84,16 @@ def delete_account(id_token):
     response = requests.post(DELETE_URL, json=data)
     if not response.ok:
         raise Exception(response.json()["error"]["message"])
+#profile page
+def change_password(id_token, new_password):
+    """Set a new password. Needs a FRESH id_token (log in again with the current password first).
+    Firebase signs out all other devices and returns new tokens: idToken, refreshToken, expiresIn."""
+    data = {"idToken": id_token, "password": new_password, "returnSecureToken": True}
+    response = requests.post(UPDATE_URL, json=data)
+    result = response.json()
+    if response.ok:
+        return result
+    raise Exception(result["error"]["message"])
 # ---------------------------------------------------------------- staying logged in
 
 def refresh_id_token(refresh_token):

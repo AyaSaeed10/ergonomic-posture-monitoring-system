@@ -19,7 +19,7 @@ from user_app.ui import styles
 PAGES = [
     ("monitor", "video", "Monitor", True),
     ("dashboard", "layout-dashboard", "Dashboard", False),
-    ("profile", "user", "Profile", False),
+    ("profile", "user", "Profile", True),
     ("settings", "settings", "Settings", False),
     ("help", "circle-question-mark", "Help", False),
 ]

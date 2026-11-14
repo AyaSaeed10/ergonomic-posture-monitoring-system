@@ -42,3 +42,5 @@ These steps are for Windows, starting from a freshly downloaded (cloned) copy of
    ```
    python -m user_app.main
    ```
+
+6. python -m pip install firebase-admin

@@ -126,6 +126,19 @@ class Session(QObject):
         self._reset_fields()
         self.remember = False
         _delete_saved_token()
+    #Profile page
+    def update_tokens(self, id_token, refresh_token, expires_in):
+        """New tokens after a password change - the old refresh token no longer works."""
+        self.id_token = id_token
+        self.refresh_token = refresh_token
+        if self.remember:
+            _save_token(refresh_token)      # keep "Remember me" working with the new token
+        self._schedule_renewal(expires_in - RENEW_BEFORE_EXPIRY_S)
+
+    def update_name(self, first_name, last_name):
+        """The user changed their name in the Profile screen."""
+        self.first_name = first_name
+        self.last_name = last_name
 
     # ------------------------------------------------------------ guest mode
     def start_guest(self):

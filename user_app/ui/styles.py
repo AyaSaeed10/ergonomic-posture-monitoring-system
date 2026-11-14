@@ -92,6 +92,7 @@ DARK = {
     "POPUP_BG": "#1D2027",   # GLASS_TOP (9% white) over BACKGROUND, pre-mixed (popups are separate windows)
     "TOOLTIP_BG": rgba(10, 14, 28, 0.78),
     "TOOLTIP_BORDER": rgba(255, 255, 255, 0.14),
+    "OVERLAY_BG": "rgba(3, 5, 12, 0.62)",       # dims the screen behind a confirm box
 }
 
 LIGHT = {
@@ -142,6 +143,7 @@ LIGHT = {
     "POPUP_BG": "#FAFBFE",   # GLASS_TOP (72% white) over BACKGROUND, pre-mixed (popups are separate windows)
     "TOOLTIP_BG": rgba(255, 255, 255, 0.88),
     "TOOLTIP_BORDER": rgba(20, 30, 70, 0.10),
+    "OVERLAY_BG": "rgba(20, 30, 70, 0.28)",     # dims the screen behind a confirm box
 }
 
 
@@ -427,6 +429,31 @@ QToolTip {{
 #DataTable::indicator:checked {{
     background: {c["PRIMARY_START"]};
     border-color: {c["PRIMARY_START"]};
+}}
+
+/* ---------- avatar circle with initials (profile page) ---------- */
+#Avatar {{
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                stop:0 {c["PRIMARY_START"]}, stop:1 {c["PRIMARY_END"]});
+    color: {c["ICON_ACTIVE"]};
+    border-radius: 32px;
+    font-family: "Sora";
+    font-size: 22px;
+    font-weight: 700;
+}}
+/* ---------- thin line between sections ---------- */
+#Divider {{
+    background: {c["BORDER"]};
+    border: none;
+}}
+/* ---------- confirm overlay: dim layer + solid card in the middle ---------- */
+#Overlay {{
+    background: {c["OVERLAY_BG"]};
+}}
+#OverlayCard {{
+    background: {c["POPUP_BG"]};
+    border: 1px solid {c["GLASS_BORDER"]};
+    border-radius: 26px;
 }}
 
 /* ---------- number input (same look as QLineEdit) ---------- */
