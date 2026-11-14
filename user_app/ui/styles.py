@@ -456,6 +456,60 @@ QToolTip {{
     border-radius: 26px;
 }}
 
+/* ---------- help screen ---------- */
+#HelpNavButton {{
+    text-align: left;
+    padding: 0 14px;
+    min-height: 44px;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    color: {c["MUTED"]};
+    font-size: 14px;
+    font-weight: 600;
+}}
+#HelpNavButton:hover {{ background: {c["HOVER_BG"]}; color: {c["TEXT"]}; }}
+#HelpNavButton[active="true"] {{ background: {c["LINK_HOVER_BG"]}; color: {c["LINK"]}; }}
+
+#HelpScroll, #HelpPage {{ background: transparent; border: none; }}
+#HelpScroll QScrollBar:vertical {{ background: transparent; width: 8px; margin: 0; }}
+#HelpScroll QScrollBar::handle:vertical {{ background: {c["BORDER"]}; border-radius: 4px; min-height: 40px; }}
+#HelpScroll QScrollBar::handle:vertical:hover {{ background: {c["INPUT_BORDER_HOVER"]}; }}
+#HelpScroll QScrollBar::add-line:vertical, #HelpScroll QScrollBar::sub-line:vertical {{ height: 0; }}
+#HelpScroll QScrollBar::add-page:vertical, #HelpScroll QScrollBar::sub-page:vertical {{ background: transparent; }}
+
+#HelpItemTitle {{ font-size: 15px; font-weight: 600; color: {c["TEXT"]}; }}
+#HelpText {{ font-size: 14px; color: {c["MUTED"]}; }}
+#HelpBullet {{ font-size: 14px; font-weight: 700; color: {c["LINK"]}; }}
+#StepNumber {{
+    background: {c["LINK_HOVER_BG"]};
+    color: {c["LINK"]};
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 700;
+}}
+#HelpChip {{
+    background: {c["HOVER_BG"]};
+    color: {c["LABEL"]};
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+}}
+
+#FaqItem {{
+    background: {c["INPUT_BG"]};
+    border: 1px solid {c["BORDER"]};
+    border-radius: 12px;
+}}
+#FaqItem:hover {{ border-color: {c["INPUT_BORDER_HOVER"]}; }}
+#FaqItem[open="true"] {{ border-color: {c["PRIMARY_START"]}; }}
+#FaqQuestion {{ font-size: 14px; font-weight: 600; color: {c["TEXT"]}; background: transparent; }}
+
+
+
+
+
 /* ---------- number input (same look as QLineEdit) ---------- */
 QSpinBox {{
     min-height: 36px;

@@ -21,9 +21,9 @@ PAGES = [
     ("dashboard", "layout-dashboard", "Dashboard", False),
     ("profile", "user", "Profile", True),
     ("settings", "settings", "Settings", False),
-    ("help", "circle-question-mark", "Help", False),
+    ("help", "circle-question-mark", "Help", True),
 ]
-GUEST_PAGES = {"monitor"}   # the only pages a guest can open (main.py checks this too)
+GUEST_PAGES = {"monitor","help"}   # the only pages a guest can open (main.py checks this too)
 
 
 class Sidebar(QFrame):

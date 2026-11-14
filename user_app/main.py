@@ -23,6 +23,7 @@ from user_app.ui.register_screen import RegisterScreen
 from user_app.ui.widgets.glow_background import GlowBackground
 from user_app.ui.widgets.sidebar import GUEST_PAGES, Sidebar
 from user_app.ui.profile_screen import ProfileScreen
+from user_app.ui.help_screen import HelpScreen
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -86,12 +87,16 @@ class MainWindow(QMainWindow):
             lambda tokens: session.update_tokens(**tokens))
         self.profile_screen.account_deleted.connect(self.on_account_deleted)
 
+        self.help_screen = HelpScreen()
+
         self.pages = QStackedWidget()
         self.pages.addWidget(self.monitor_screen)
         self.pages.addWidget(self.profile_screen)
+        self.pages.addWidget(self.help_screen)
         self.page_by_name = {
             "monitor": self.monitor_screen,
             "profile": self.profile_screen,
+            "help": self.help_screen,
         }
 
         self.sidebar = Sidebar()
