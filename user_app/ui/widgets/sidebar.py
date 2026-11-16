@@ -2,6 +2,7 @@
 Sidebar - floating glass icon bar on the left of the app (after login).
 
 Top: logo + one icon per page (tooltip on hover, the active page is highlighted).
+     If the user has a profile photo, it is shown instead of the Profile icon.
 Bottom: theme switch (sun / moon) and Log out.
 Pages that are not built yet show "coming soon" in their tooltip and do nothing.
 
@@ -10,10 +11,14 @@ others stay visible but dimmed ("locked"); clicking one shows "Create an account
 to use this". The Log out button becomes "Sign in" (back to the Login screen).
 """
 
+import base64
+
 from PyQt5.QtCore import QPoint, QSize, Qt, pyqtSignal
+from PyQt5.QtGui import QIcon, QImage
 from PyQt5.QtWidgets import QFrame, QLabel, QPushButton, QToolTip, QVBoxLayout
 
 from user_app.ui import styles
+from user_app.ui.profile_screen import round_pixmap
 
 # (page name, Lucide icon file, tooltip, is the page built yet?)
 PAGES = [
@@ -23,7 +28,9 @@ PAGES = [
     ("settings", "settings", "Settings", False),
     ("help", "circle-question-mark", "Help", True),
 ]
-GUEST_PAGES = {"monitor","help"}   # the only pages a guest can open (main.py checks this too)
+GUEST_PAGES = {"monitor", "help"}   # the only pages a guest can open (main.py checks this too)
+
+PHOTO_SIZE = 30                     # the user's photo on the Profile button (the icons are 22)
 
 
 class Sidebar(QFrame):
@@ -35,6 +42,7 @@ class Sidebar(QFrame):
         self.setFixedWidth(76)
         self.active_page = "monitor"
         self.guest = False
+        self.photo = ""                # the user's photo (Base64) -> shown instead of the Profile icon
         self.buttons = {}              # page name -> (button, icon, label, ready)
 
         layout = QVBoxLayout(self)
@@ -72,6 +80,11 @@ class Sidebar(QFrame):
         self.guest = guest
         self._refresh()
 
+    def set_photo(self, photo):
+        """Show the user's photo instead of the Profile icon ("" -> the normal icon)."""
+        self.photo = photo or ""
+        self._refresh()
+
     def _is_locked(self, name):
         return self.guest and name not in GUEST_PAGES
 
@@ -103,7 +116,14 @@ class Sidebar(QFrame):
             button.setProperty("active", active)
             button.style().unpolish(button)
             button.style().polish(button)
-            button.setIcon(styles.load_icon(icon, color))
+            if name == "profile" and self.photo and not self.guest:     # the photo instead of the icon
+                image = QImage()
+                image.loadFromData(base64.b64decode(self.photo))
+                button.setIconSize(QSize(PHOTO_SIZE, PHOTO_SIZE))
+                button.setIcon(QIcon(round_pixmap(image, PHOTO_SIZE, button.devicePixelRatioF())))
+            else:
+                button.setIconSize(QSize(22, 22))
+                button.setIcon(styles.load_icon(icon, color))
 
         dark = styles.theme.name == "dark"   # the icon shows the theme you will switch TO
         self.theme_button.setIcon(styles.load_icon("sun" if dark else "moon", colors["ICON"]))

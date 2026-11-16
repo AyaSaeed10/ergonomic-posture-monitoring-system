@@ -81,3 +81,24 @@ def delete_user_profile(uid, id_token):
     response = requests.delete(url, headers=headers)
     if not response.ok:
         raise Exception(response.json()["error"]["status"])
+
+
+def save_user_photo(uid, id_token, photo_base64):
+    """Save the profile photo (a small JPEG) in users/{uid}.photo as Firestore Bytes.
+    The REST API sends Bytes as Base64 text - Firestore stores them as real binary data."""
+    url = f"{FIRESTORE_URL}/users/{uid}?updateMask.fieldPaths=photo"
+    headers = {"Authorization": f"Bearer {id_token}"}
+    data = {"fields": {"photo": {"bytesValue": photo_base64}}}
+    response = requests.patch(url, json=data, headers=headers)
+    if not response.ok:
+        raise Exception(response.json()["error"]["status"])
+
+
+def remove_user_photo(uid, id_token):
+    """Delete the photo field -> the app shows the initials again."""
+    # "photo" is in the updateMask but NOT in the data -> Firestore deletes the field
+    url = f"{FIRESTORE_URL}/users/{uid}?updateMask.fieldPaths=photo"
+    headers = {"Authorization": f"Bearer {id_token}"}
+    response = requests.patch(url, json={"fields": {}}, headers=headers)
+    if not response.ok:
+        raise Exception(response.json()["error"]["status"])

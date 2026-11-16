@@ -92,7 +92,8 @@ DARK = {
     "POPUP_BG": "#1D2027",   # GLASS_TOP (9% white) over BACKGROUND, pre-mixed (popups are separate windows)
     "TOOLTIP_BG": rgba(10, 14, 28, 0.78),
     "TOOLTIP_BORDER": rgba(255, 255, 255, 0.14),
-    "OVERLAY_BG": "rgba(3, 5, 12, 0.62)",       # dims the screen behind a confirm box
+    "OVERLAY_BG": rgba(3, 5, 12, 0.62),         # dims the screen behind a confirm box
+    "DANGER_HOVER": "#FF8E81",                  # delete button under the mouse (a bit lighter)
 }
 
 LIGHT = {
@@ -143,7 +144,8 @@ LIGHT = {
     "POPUP_BG": "#FAFBFE",   # GLASS_TOP (72% white) over BACKGROUND, pre-mixed (popups are separate windows)
     "TOOLTIP_BG": rgba(255, 255, 255, 0.88),
     "TOOLTIP_BORDER": rgba(20, 30, 70, 0.10),
-    "OVERLAY_BG": "rgba(20, 30, 70, 0.28)",     # dims the screen behind a confirm box
+    "OVERLAY_BG": rgba(20, 30, 70, 0.28),       # dims the screen behind a confirm box
+    "DANGER_HOVER": "#A93220",                  # delete button under the mouse (a bit darker)
 }
 
 
@@ -387,18 +389,17 @@ QToolTip {{
 
 /* ---------- danger button (delete) - ERROR used only for its meaning ---------- */
 #DangerButton {{
-    background: {c["ERROR_BG"]};
-    border: 1.5px solid {c["ERROR_BORDER"]};
-    color: {c["ERROR"]};
+    background: {c["ERROR"]};
+    border: none;
+    color: {c["ICON_ACTIVE"]};
     border-radius: 14px;
     min-height: 48px;
     font-size: 15px;
     font-weight: 600;
 }}
-#DangerButton:hover {{ border-color: {c["ERROR"]}; }}
+#DangerButton:hover {{ background: {c["DANGER_HOVER"]}; }}
 #DangerButton:disabled {{
     background: {c["DISABLED_BG"]};
-    border-color: transparent;
     color: {c["DISABLED_TEXT"]};
 }}
 
@@ -598,4 +599,3 @@ class ThemeManager(QObject):
 
 
 theme = ThemeManager()
-

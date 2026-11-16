@@ -17,13 +17,14 @@ from PyQt5.QtWidgets import (
 
 from user_app.services.session import session
 from user_app.ui import styles
+from user_app.ui.help_screen import HelpScreen
 from user_app.ui.login_screen import LoginScreen
 from user_app.ui.monitor_screen import MonitorScreen
+from user_app.ui.profile_screen import ProfileScreen
 from user_app.ui.register_screen import RegisterScreen
 from user_app.ui.widgets.glow_background import GlowBackground
 from user_app.ui.widgets.sidebar import GUEST_PAGES, Sidebar
-from user_app.ui.profile_screen import ProfileScreen
-from user_app.ui.help_screen import HelpScreen
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -56,7 +57,7 @@ class MainWindow(QMainWindow):
         self.register_screen.registered.connect(self.after_register)
         self.login_screen.logged_in.connect(self.after_login)
         self.login_screen.continue_as_guest.connect(self.open_guest)
-    
+
         # 4. ONE theme button for the whole app (floats in the top-right corner)
         self.theme_button = QPushButton(self, objectName="ThemeToggle")
         self.theme_button.setCursor(Qt.PointingHandCursor)
@@ -86,6 +87,7 @@ class MainWindow(QMainWindow):
         self.profile_screen.tokens_changed.connect(
             lambda tokens: session.update_tokens(**tokens))
         self.profile_screen.account_deleted.connect(self.on_account_deleted)
+        self.profile_screen.photo_changed.connect(self.on_photo_changed)
 
         self.help_screen = HelpScreen()
 
@@ -111,7 +113,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.pages, 1)
         return shell
 
-        # ------------------------------------------------------------ theme button
+    # ------------------------------------------------------------ theme button
     def update_theme_button(self, theme_name):
         # the button shows the theme you will switch TO
         self.theme_button.setText("☀  Light mode" if theme_name == "dark" else "☾  Dark mode")
@@ -132,7 +134,7 @@ class MainWindow(QMainWindow):
         """Runs when the window is closed - turn the camera off first."""
         self.monitor_screen.stop_camera()
         super().closeEvent(event)
-        
+
     # ------------------------------------------------------------ navigation
     def show_login(self):
         self.login_screen.reset()
@@ -166,6 +168,7 @@ class MainWindow(QMainWindow):
     def _enter_app_shell(self, guest):
         self.theme_button.hide()            # after login the theme switch is in the sidebar
         self.sidebar.set_guest(guest)
+        self.sidebar.set_photo("" if guest else session.photo)   # the photo on the Profile button
         self.monitor_screen.set_guest(guest)
         # refreshed every time the app opens, so it always matches the current user (or guest)
         self.monitor_screen.set_greeting("" if guest else session.first_name)
@@ -178,7 +181,6 @@ class MainWindow(QMainWindow):
         signed in -> every page; guest -> only GUEST_PAGES; signed out -> Login.
         (This only prevents mistakes in the app - real data protection is the
         Firestore security rules.)"""
-
         state = session.state
         if state == "signed_out":
             self.show_login()
@@ -190,8 +192,6 @@ class MainWindow(QMainWindow):
             return
         if name == "profile":               # always show the current user's details
             self.profile_screen.load_user(self._session_user())
-        self.pages.setCurrentWidget(self.page_by_name[name])
-        self.stack.setCurrentWidget(self.app_shell)
         self.pages.setCurrentWidget(self.page_by_name[name])
         self.stack.setCurrentWidget(self.app_shell)
 
@@ -226,7 +226,7 @@ class MainWindow(QMainWindow):
         if reason == "network":             # the saved token is kept for next time
             self.login_screen.show_message("No internet connection. Please try again.")
 
-        # ------------------------------------------------------------ profile
+    # ------------------------------------------------------------ profile
     def _session_user(self):
         """The signed-in user as a dict, for the Profile screen."""
         return {
@@ -242,10 +242,17 @@ class MainWindow(QMainWindow):
         session.update_name(names["first_name"], names["last_name"])
         self.monitor_screen.set_greeting(session.first_name)
 
+    def on_photo_changed(self, photo):
+        """New photo / photo removed in the Profile screen -> remember it and show it in the sidebar."""
+        session.update_photo(photo)
+        self.sidebar.set_photo(photo)
+
     def on_account_deleted(self):
         """The account no longer exists -> log out and say so on the Login screen."""
         self.logout()
         self.login_screen.show_message("Your account was deleted.", "success")
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     styles.theme.apply()

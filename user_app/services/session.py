@@ -2,7 +2,7 @@
 Session - ONE shared object that knows who is signed in.
 
     from user_app.services.session import session
-    session.first_name, session.email, session.id_token, ...
+    session.first_name, session.email, session.photo, session.id_token, ...
 
 - Login calls session.start(user, remember); Log out calls session.clear().
 - The Firebase ID token lasts 1 hour. The session renews it automatically
@@ -41,7 +41,7 @@ class RenewWorker(QThread):
     def __init__(self, refresh_token, with_profile):
         super().__init__()
         self.refresh_token = refresh_token
-        self.with_profile = with_profile   # True at app start: we also need name + email
+        self.with_profile = with_profile   # True at app start: we also need name, email + photo
 
     def run(self):
         try:
@@ -51,6 +51,7 @@ class RenewWorker(QThread):
                 result["first_name"] = profile.get("first_name", "")
                 result["last_name"] = profile.get("last_name", "")
                 result["email"] = profile.get("email", "")
+                result["photo"] = profile.get("photo", "")
             self.succeeded.emit(result)
         except requests.exceptions.RequestException:
             self.failed.emit("network")    # no internet, timeout, Firebase server error
@@ -82,6 +83,7 @@ class Session(QObject):
         self.first_name = ""
         self.last_name = ""
         self.email = ""
+        self.photo = ""                # profile photo (Base64), "" = no photo
         self.id_token = None
         self.refresh_token = None
 
@@ -105,12 +107,13 @@ class Session(QObject):
     # ------------------------------------------------------------ sign in / out
     def start(self, user, remember):
         """Called after a successful login. `user` has uid, first_name, last_name,
-        email, id_token, refresh_token and expires_in (seconds)."""
+        email, photo, id_token, refresh_token and expires_in (seconds)."""
         self.is_guest = False
         self.uid = user["uid"]
         self.first_name = user.get("first_name", "")
         self.last_name = user.get("last_name", "")
         self.email = user.get("email", "")
+        self.photo = user.get("photo", "")
         self.id_token = user["id_token"]
         self.refresh_token = user["refresh_token"]
         self.remember = remember
@@ -126,7 +129,8 @@ class Session(QObject):
         self._reset_fields()
         self.remember = False
         _delete_saved_token()
-    #Profile page
+
+    # ------------------------------------------------------------ changes from the Profile page
     def update_tokens(self, id_token, refresh_token, expires_in):
         """New tokens after a password change - the old refresh token no longer works."""
         self.id_token = id_token
@@ -139,6 +143,10 @@ class Session(QObject):
         """The user changed their name in the Profile screen."""
         self.first_name = first_name
         self.last_name = last_name
+
+    def update_photo(self, photo):
+        """The user changed or removed their photo in the Profile screen."""
+        self.photo = photo or ""
 
     # ------------------------------------------------------------ guest mode
     def start_guest(self):

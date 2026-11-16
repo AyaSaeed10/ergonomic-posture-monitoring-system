@@ -68,7 +68,7 @@ class LoginWorker(QThread):
                 profile = {"first_name": first_name, "last_name": last_name}
 
             # Step 4: everything the app needs about the logged-in user
-                        # Step 4: everything the app needs about the logged-in user
+                      # Step 4: everything the app needs about the logged-in user
             first_name = profile.get("first_name", "")
             last_name = profile.get("last_name", "")
             user = {
@@ -80,6 +80,7 @@ class LoginWorker(QThread):
                 "first_name": first_name,
                 "last_name": last_name,
                 "name": f"{first_name} {last_name}".strip(),
+                "photo": profile.get("photo", ""),
             }
             self.succeeded.emit(user)
 
